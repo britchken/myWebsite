@@ -1,0 +1,367 @@
+<xmp align = "left" style="font-size:12px;line-height: 1.5">
+/*
+ * File:        Blimp-F-O
+ * Author:      Brian Ritchken & Jim Liu
+ * Target PIC:  PIC32MX250F128B
+ */
+
+////////////////////////////////////
+// Clock AND ProtoThreads configuration
+#include "config.h"
+// threading library
+#include "pt_cornell_1_2.h"
+
+////////////////////////////////////
+// Libraries
+#include <math.h>
+#include <stdlib.h>
+////////////////////////////////////
+
+// string buffer
+char buffer[100];
+
+// === thread structures ============================================
+// thread control structs
+// note that UART input and output are threads
+static struct pt pt_timer, pt_accel;
+
+// system 1 second interval tick
+int sys_time_seconds ;
+
+#define EnablePullDownB(bits) CNPUBCLR=bits; CNPDBSET=bits;
+#define EnablePullDownA(bits) CNPUACLR=bits; CNPDASET=bits;
+
+float holdPositionPWM = 0.50;
+
+int tipThreshold = 5;
+
+volatile float tip1 = 0;
+volatile float tip2 = 0;
+volatile float tip3 = 0;
+
+float xTip;
+float yTip;
+float stayTheta;
+
+static float upDown = .50;
+static float scaleFactor= 35000;
+
+char xOffset = 2;
+char yOffset = 4;
+char zOffset = 64;
+
+volatile static float theta;
+
+typedef enum states
+{
+    s_holdPosition,
+    s_forward,
+    s_backward,
+    s_left,
+    s_right,
+    s_up,
+    s_down,
+    s_caliUp,
+    s_caliDown
+} states_t;
+
+volatile static states_t mode = s_holdPosition;
+
+volatile static unsigned int Buttons = 4;
+
+static int counter = 0;
+
+// === Timer Thread =================================================
+// Useful for testing both the code and LEDs
+static PT_THREAD (protothread_timer(struct pt *pt))
+{
+    PT_BEGIN(pt);
+      while(1) {
+        // yield time 1 second
+        PT_YIELD_TIME_msec(500);
+        
+        //Test code to cycle through the 8 LEDs
+        /*
+        mPORTAClearBits(BIT_2 | BIT_4);
+        mPORTBClearBits( BIT_0 | BIT_1 | BIT_2 | BIT_11 | BIT_12 | BIT_14);
+        
+        if(counter == 0)       mPORTBSetBits(BIT_12);
+        else if(counter == 1)  mPORTBSetBits(BIT_14);
+        else if(counter == 2)  mPORTASetBits(BIT_4);
+        else if(counter == 3)  mPORTASetBits(BIT_2);
+        else if(counter == 4)  mPORTBSetBits(BIT_2);
+        else if(counter == 5)  mPORTBSetBits(BIT_1);
+        else if(counter == 6)  mPORTBSetBits(BIT_0);
+        else                   mPORTBSetBits(BIT_11);
+        counter++;
+        if (counter == 8) counter = 0;
+        */
+        // NEVER exit while
+      } // END WHILE(1)
+
+  PT_END(pt);
+} // timer thread
+
+
+//I2C read function
+unsigned char getData(unsigned char axis) {
+    unsigned char ddata;
+    StartI2C1(); //Start
+    IdleI2C1();
+    MasterWriteI2C1(0x38); //Send Device Address (Write)
+    IdleI2C1();
+    while (I2C1STATbits.ACKSTAT); //wait for slave acknowledge
+    MasterWriteI2C1(axis); //Send Register Address
+    IdleI2C1();
+    while (I2C1STATbits.ACKSTAT); //wait for slave acknowledge
+    RestartI2C1(); //Restart
+    IdleI2C1();
+    MasterWriteI2C1(0x39); //Send Device Address (Read)
+    IdleI2C1();
+    while (I2C1STATbits.ACKSTAT); //wait for slave acknowledge
+    ddata = MasterReadI2C1();
+    IdleI2C1();
+    StopI2C1();
+    IdleI2C1();
+    return ddata;
+}
+
+//Function to calculate accelerometer corrections
+void getMotors(float angle) {
+    while(angle > 2*M_PI) angle = angle - 2*M_PI;
+    while(angle < 0) angle = angle + 2*M_PI;
+    tip1 = cos(angle);
+    tip2 = cos(angle - 2*M_PI/3);
+    tip3 = cos(angle - 4*M_PI/3);
+    if (tip1 < 0) tip1 = 0;
+    if (tip2 < 0) tip2 = 0;
+    if (tip3 < 0) tip3 = 0;
+}
+
+// === Accelerometer Thread =============================================
+// 
+
+//UINT8 b;
+unsigned char SlaveAddress;
+char xData;
+char yData;
+char zData;
+
+void stay(void) {
+    
+    if (abs(xData) > tipThreshold || abs(yData) > tipThreshold)
+    {
+        if (xTip >= 0) {
+            if (xTip == 0) xTip = 0.01;
+            stayTheta  = atan(-yTip/xTip) + M_PI;
+        } else {
+            stayTheta  = atan(-yTip/xTip);
+        }
+    getMotors(stayTheta);
+    }
+    else 
+    //It is flat
+    {
+      tip1 = 0;
+      tip2 = 0;
+      tip3 = 0;
+    }
+}
+
+static PT_THREAD (protothread_accel(struct pt *pt))
+{
+    PT_BEGIN(pt); 
+            
+    while(1) {
+        // yield time 1 second
+        PT_YIELD_TIME_msec(30);
+
+        xData = getData(0x01) - xOffset;
+        yData = getData(0x03) - yOffset;
+        zData = getData(0x05) - zOffset;
+        
+        xTip = (xData / 128.0);
+        yTip = (yData / 128.0);
+        
+        Buttons = mPORTBReadBits(BIT_4 | BIT_7 | BIT_13 | BIT_15);
+        switch(Buttons){
+            case 144:
+                mode = s_backward;
+                break;
+            case 40960:
+                mode = s_forward;
+                break;
+            case 16:
+                mode = s_left;
+                break;
+            case 128:
+                mode = s_right;
+                break;
+            case 8192: 
+                mode = s_up;
+                break;
+            case 32768:
+                mode = s_down;
+                break;
+            case 32896: 
+                mode = s_caliUp;
+                break;
+            case 8208:
+                mode = s_caliDown;
+                break;            
+            default:
+                mode = s_holdPosition;
+        }
+        
+        
+        //Turn on the appropriate LED
+        mPORTAClearBits( BIT_2 | BIT_4);
+        mPORTBClearBits( BIT_0 | BIT_1 | BIT_2 | BIT_11 | BIT_12 | BIT_14);
+
+        if(theta < M_PI/8 || theta > M_PI*15/8) mPORTBSetBits(BIT_2);
+        else if(theta < M_PI*3/8)  mPORTBSetBits(BIT_1);
+        else if(theta < M_PI*5/8)  mPORTBSetBits(BIT_0);
+        else if(theta < M_PI*7/8)  mPORTBSetBits(BIT_11);
+        else if(theta < M_PI*9/8)  mPORTBSetBits(BIT_12);
+        else if(theta < M_PI*11/8) mPORTBSetBits(BIT_14);
+        else if(theta < M_PI*13/8) mPORTASetBits(BIT_4);
+        else                       mPORTASetBits(BIT_2);
+        
+        switch (mode) {
+        //HOLDING POSITION
+            case s_holdPosition:
+                stay();
+                upDown = holdPositionPWM;
+                break;
+            
+            case s_forward:
+                getMotors(theta);
+                upDown = holdPositionPWM;
+                break;
+        
+            case s_backward:
+                getMotors(theta + M_PI);
+                upDown = holdPositionPWM;
+                break;
+                
+            case s_left:
+                theta = theta - .05;
+                if (theta < 0) theta = theta + 2 * M_PI;
+                stay();
+                upDown = holdPositionPWM;
+                break;
+                
+            case s_right:
+                theta = theta + .05;
+                if (theta > 2*M_PI) theta = theta - 2 * M_PI;
+                stay();
+                upDown = holdPositionPWM;
+                break;
+                
+            case s_up:
+                upDown = 1.0;
+                stay();
+                break;
+                
+            case s_down:
+                upDown = 0.0;
+                stay();
+                break;
+                
+            case s_caliUp:
+                upDown = holdPositionPWM;
+                stay();
+                if (scaleFactor < 40000) scaleFactor +=10;
+                break;
+                
+            case s_caliDown:
+                upDown = holdPositionPWM;
+                stay();
+                if (holdPositionPWM > 1) scaleFactor -=10;
+                break;                
+        }
+          
+        //Set Motor Speeds
+        SetDCOC1PWM(floor((upDown + (1-upDown) * tip1) * scaleFactor));
+        SetDCOC2PWM(floor((upDown + (1-upDown) * tip2) * scaleFactor));
+        SetDCOC3PWM(floor((upDown + (1-upDown) * tip3) * scaleFactor));
+
+        // NEVER exit while
+      } // END WHILE(1)
+  PT_END(pt);
+} // animation thread
+
+
+// === Main  ======================================================
+void main(void) {
+  //SYSTEMConfigPerformance(PBCLK);  
+  ANSELA = 0; ANSELB = 0; 
+  
+  // === set up system wide interrupts  ====================
+  //INTEnableSystemMultiVectoredInt();
+  
+  // === config threads ==========
+  // turns OFF UART support and debugger pin, unless defines are set
+  PT_setup();
+  
+  // === I2C Init ================
+  SlaveAddress = 0x1C;
+  //SDA1 = Pin 18
+  //SCL1 = Pin 17
+  //A = GROUND
+  OpenI2C1(I2C_ON, 9600);
+  IdleI2C1();
+  
+  StartI2C1(); //Start
+  IdleI2C1();
+  
+  MasterWriteI2C1(0x38); //Send Device Address (Write)
+  IdleI2C1();
+  while (I2C1STATbits.ACKSTAT); //wait for slave acknowledge
+  
+  MasterWriteI2C1(0x2A); //Send Register Address
+  IdleI2C1();
+  while (I2C1STATbits.ACKSTAT); //wait for slave acknowledge
+  
+  MasterWriteI2C1(0x03); //Send Write Data
+  IdleI2C1();
+  while (I2C1STATbits.ACKSTAT); //wait for slave acknowledge
+  StopI2C1();
+  
+  // === setup system wide interrupts  ========
+  INTEnableSystemMultiVectoredInt();
+  
+  // init the threads
+  PT_INIT(&pt_timer);
+  PT_INIT(&pt_accel);
+  
+  // === Set up PWM signals ===================
+  OpenOC1( OC_ON | OC_TIMER_MODE16 | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
+  OpenOC2( OC_ON | OC_TIMER_MODE16 | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
+  OpenOC3( OC_ON | OC_TIMER_MODE16 | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
+  OpenTimer3(T3_ON | T3_SOURCE_INT | T3_PS_1_1, 40000); //1000 Hz
+  PPSOutput(1, RPB3,  OC1); //0   degrees motor
+  PPSOutput(2, RPB5,  OC2); //120 degrees motor
+  PPSOutput(4, RPB10, OC3); //240 degrees motor
+  
+  //Pins for remote control -> need pulldown
+  mPORTBSetPinsDigitalIn( BIT_4 | BIT_7 | BIT_13 | BIT_15 );
+  EnablePullDownB( BIT_4 | BIT_7 | BIT_13 | BIT_15 );
+  
+  //Pins for LEDS
+  mPORTASetPinsDigitalOut( BIT_2 | BIT_4);
+  EnablePullDownA( BIT_2 | BIT_4);
+  mPORTBSetPinsDigitalOut( BIT_0 | BIT_1 | BIT_2 | BIT_11 | BIT_12 | BIT_14);
+  EnablePullDownB(BIT_0 | BIT_1 | BIT_2 | BIT_11 | BIT_12 | BIT_14 );
+  
+  // round-robin scheduler for threads
+  while (1){
+      PT_SCHEDULE(protothread_timer(&pt_timer));
+      PT_SCHEDULE(protothread_accel(&pt_accel));
+      }
+  } // main
+
+// === end  ======================================================
+
+
+							</xmp>

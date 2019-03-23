@@ -1,0 +1,147 @@
+<!DOCTYPE HTML>
+<!--
+	TXT by HTML5 UP
+	html5up.net | @n33co
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html>
+	<head>
+		<link rel="icon" type="image/png" href="images/favicon-16x16.png" sizes="16x16" />
+		<title>Brian - Blimp-F-O</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!--[if lte IE 8]><script src="assets/js/ie/html5shiv.js"></script><![endif]-->
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<!--[if lte IE 8]><link rel="stylesheet" href="assets/css/ie8.css" /><![endif]-->
+	</head>
+	<body>
+		<div id="header">
+				<div class="top">
+					<!-- Logo -->
+						<div id="logo">
+							<span class="image avatar48"><img src="images/me.jpg" alt="" /></span>
+							<h1 id="title">Brian's Place</h1>
+							<p>The home of my projects</p>
+						</div>
+
+					<!-- Nav -->
+						<nav id="nav">
+							<ul>
+								<li><a href="index.html" id="top-link" class="skel-layers-ignoreHref"><span class="icon fa-home">Back Home</span></a></li>
+								<li><a href="index.html#projects" id="portfolio-link" class="skel-layers-ignoreHref"><span class="icon fa-th">Back to Projects</span></a></li>
+							</ul>
+						</nav>
+				</div>
+
+				<div class="bottom">
+					<!-- Social Icons -->
+						<ul class="icons">
+							<li><a href="https://www.linkedin.com/in/brianritchken" class="icon fa-linkedin" ><span class="label">LinkedIn</span></a></li>
+							<li><a href="https://github.com/britchken" class="icon fa-github"><span class="label">Githube</span></a></li>
+							<li><a href="mailto:bjr96@cornell.edu" class="icon fa-envelope"><span class="label">Email</span></a></li>
+						</ul>
+
+				</div>
+
+			</div>
+
+		<div id="page-wrapper">
+			<!-- Main -->
+				<div id="main-wrapper">
+					<div id="main" class="container">
+						<div class="row">
+							<div class="12u">
+								<div class="content">
+									<div class="final-inner">
+									<!-- Introduction -->
+										<article class="box page-content">
+											<section id="intro" class="two">
+											<br>
+											<h3 class="major"><span>Blimp-F-O &nbsp &nbsp <a href="http://people.ece.cornell.edu/land/courses/ece4760/FinalProjects/f2015/bjr96_jl2628/bjr96_jl2628/bjr96_jl2628/index.html"> [Link to Full Report]</a></span></h3>
+											<br>
+
+											<p>
+													Blimp-F-O is a remote-controlled flying machine designed with a PIC32 microprocessor.It was our final project for the Microcontroller Design course at Cornell University. Our team consisted of Brian Ritchken and Jim Liu. The project was  <a class="blaster" href="http://hackaday.com/2015/12/25/you-need-a-self-righting-thrust-vector-balloon-copter/">recently featured on Hackaday</a>, a technology blog that showcases "hacks" from around the Internet.
+											</p>
+											<div class = "row">
+												<div class = "4u 3u(mobile)">
+												</div>
+												<div class = "4u 6u(mobile)">
+													<a href="images/overview.jpg" class="image featured"><img src="images/overview.jpg" alt="" /></a>
+												</div>
+												<div class = "4u 3u(mobile)">
+												</div>
+											</div>
+												
+												
+											</section>
+
+											<!-- Appendix -->
+										<section id="appendix" class="seven">
+
+											
+
+											<p> Flying drones have a wide range of applications and are becoming more and more popular. With that in mind, we decided to construct a balloon copter capable of fluid navigation in any direction. At the same time, we wanted our design to be reliable and capable of carrying a substantial amount of weight so that we could extend the project in the future. Our current design provides enough thrust, power, and CPU idle time to comfortably include peripherals like temperature sensors, video cameras, and displays.</p>
+
+											<p>Blimp-F-O comprises a PIC32 microcontroller, an adafruit! accelerometer, three motors (with propellers), and an adafruit! 350 MHz transmitter/receiver pair. It is powered with three 9V batteries and a portable USB phone charger.</p>
+
+											<p align = "left"> Here's a short video showcasing some of Blimp-F-O's features:</p>
+
+											<iframe width="70%" height="300px" src="https://www.youtube.com/embed/KlfAZTL0oaY" frameborder="0" allowfullscreen></iframe>
+										</section>
+
+										<!-- High Level Design -->
+										<section id="high" class="three">
+											<br> <br>
+
+											<h3 align = "left">Functional Overview</h3>
+
+											<p align = "left">To turn it on, four batteries are connected to clearly marked terminals, and the mini-USB cable is attached to the microprocessor. After a brief delay, the control system enters a state which maintains the current position. From here, we can calibrate the blimp to account for the loss of helium over time. Blimp-F-O can be calibrated either with the remote (for fine-grained precision) or by an on-board ballast system (for larger changes). Using the remote increases or decreases the duty cycle of the PWM signals to the three motors uniformly.</p>
+
+											<p align = "left">Once calibrated, Blimp-F-O is ready for operation. A single green LED around the ring turns on to indicate the forward direction, and the user has complete control from there. A more in-depth video is available <a class="blaster" href = "https://www.youtube.com/watch?v=22MGosOH8qk&list=PLKcjQ_UFkrd7JYi9yO2zcU4sMUj3x_pOL"> on the course's YouTube page. </a></p>
+
+											<p align = "left"> Our full report is available <a class="blaster" href = "http://people.ece.cornell.edu/land/courses/ece4760/FinalProjects/f2015/bjr96_jl2628/bjr96_jl2628/bjr96_jl2628/index.html"> here</a>. </p>
+											
+											<h3><span>Appendix:</span></h3>
+
+											<a class="blaster" href = "code.html"> Commented Code <br></a>
+
+											<a class="blaster" href = "http://people.ece.cornell.edu/land/courses/ece4760/">
+												ECE4760 Resources
+												<br>
+											</a>
+
+											<a class="blaster" href = "https://www.adafruit.com/datasheets/PT2272.pdf">
+												RF Receiver <br>
+											</a>
+
+											<a class="blaster" href = "https://www.adafruit.com/datasheets/Freescale_MMA8451QR1.pdf">
+												Accelerometer <br>
+											</a>
+
+											<a class="blaster" href = "http://www.ti.com.cn/cn/lit/ds/symlink/lm140l.pdf">
+												Voltage Regulator
+										  </a>
+
+										</section>
+									</article>
+										<br>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.dropotron.min.js"></script>
+			<script src="assets/js/skel.min.js"></script>
+			<script src="assets/js/skel-viewport.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<!--[if lte IE 8]><script src="assets/js/ie/respond.min.js"></script><![endif]-->
+			<script src="assets/js/main.js"></script>
+
+	</body>
+</html>
